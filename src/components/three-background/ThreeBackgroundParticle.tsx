@@ -43,6 +43,17 @@ export default function ThreeBackgroundParticle() {
     const selectedColorTheme = useAppSelector((state) => state.setting.selectedColorTheme);
 
     useEffect(() => {
+        // Ensure we're in the browser and WebGL is supported
+        if (typeof window === "undefined" || !mountRef.current) return;
+
+        // Check if WebGL is supported
+        const canvas = document.createElement("canvas");
+        const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+        if (!gl) {
+            console.warn("WebGL is not supported in this environment");
+            return;
+        }
+
         const mantineColorBody = getComputedStyle(document.documentElement).getPropertyValue("--mantine-color-body").trim();
         const mantinePrimaryColorFilled = getComputedStyle(document.documentElement).getPropertyValue("--mantine-primary-color-filled").trim();
         const mantinePrimary6 = getComputedStyle(document.documentElement).getPropertyValue("--mantine-primary-color-6").trim();
@@ -69,9 +80,15 @@ export default function ThreeBackgroundParticle() {
         const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
         camera.position.set(0, 0, 0);
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(container.clientWidth, container.clientHeight);
-        container.appendChild(renderer.domElement);
+        let renderer: THREE.WebGLRenderer;
+        try {
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+        } catch (error) {
+            console.error("Failed to create WebGL renderer:", error);
+            return;
+        }
 
         // ==== Light (for MeshStandardMaterial or phong) ====
         // Ambient cho bóng trắng tím tự nhiên
@@ -236,7 +253,11 @@ export default function ThreeBackgroundParticle() {
         requestAnimationFrame(animate);
 
         return () => {
-            mountRef.current?.removeChild(renderer.domElement);
+            window.removeEventListener("mousemove", handleMouseMove);
+            if (renderer && mountRef.current) {
+                mountRef.current.removeChild(renderer.domElement);
+                renderer.dispose();
+            }
         };
     }, [colorScheme, selectedColorTheme]);
 
